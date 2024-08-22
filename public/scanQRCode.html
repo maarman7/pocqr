@@ -1,0 +1,65 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>QR Code Scanner</title>
+</head>
+<body>
+    <h1>QR Code Scanner</h1>
+    <video id="video" width="300" height="300" style="border: 1px solid black;"></video>
+    <p id="output"></p>
+    <script src="https://cdn.jsdelivr.net/npm/jsqr"></script>
+    <script>
+        const video = document.getElementById('video');
+        const output = document.getElementById('output');
+
+        // Use the device camera to scan the QR code
+        async function startCamera() {
+            try {
+                const stream = await navigator.mediaDevices.getUserMedia({ video: { facingMode: 'environment' } });
+                video.srcObject = stream;
+                video.setAttribute('playsinline', true); // required to tell iOS Safari we don't want fullscreen
+                video.play();
+                requestAnimationFrame(tick);
+            } catch (err) {
+                console.error('Error accessing camera:', err);
+            }
+        }
+
+        // Read the QR code from the video stream
+        function tick() {
+            if (video.readyState === video.HAVE_ENOUGH_DATA) {
+                const canvas = document.createElement('canvas');
+                canvas.width = video.videoWidth;
+                canvas.height = video.videoHeight;
+                const context = canvas.getContext('2d');
+                context.drawImage(video, 0, 0, canvas.width, canvas.height);
+                const imageData = context.getImageData(0, 0, canvas.width, canvas.height);
+                const code = jsQR(imageData.data, imageData.width, imageData.height, {
+                    inversionAttempts: 'dontInvert',
+                });
+                if (code) {
+                    output.textContent = `QR Code scanned: ${code.data}`;
+                    stopCamera();
+                } else {
+                    requestAnimationFrame(tick);
+                }
+            } else {
+                requestAnimationFrame(tick);
+            }
+        }
+
+        // Stop the camera
+        function stopCamera() {
+            const stream = video.srcObject;
+            const tracks = stream.getTracks();
+            tracks.forEach(track => track.stop());
+            video.srcObject = null;
+        }
+
+        // Start the camera when the page loads
+        window.onload = startCamera;
+    </script>
+</body>
+</html>
